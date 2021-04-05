@@ -3,7 +3,10 @@ import 'dart:io';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:chat_test/shared/const.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:fluttertoast/fluttertoast.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ChatSettings extends StatelessWidget {
@@ -64,9 +67,73 @@ class _SettingsScreenState extends State<SettingsScreen> {
     setState(() {});
   }
 
-  Future getImage() async {}
+  Future getImage() async {
+    ImagePicker imagePicker = ImagePicker();
+    PickedFile pickedFile;
 
-  void handleUpdateData() {}
+    pickedFile = await imagePicker.getImage(source: ImageSource.gallery);
+
+    File image = File(pickedFile.path);
+
+    if (image != null) {
+      setState(() {
+        avatarImageFile = image;
+        isLoading = true;
+      });
+    }
+    uploadFile();
+  }
+
+  Future uploadFile() async {
+    /*String fileName = id;
+    Reference reference = FirebaseStorage.instance.ref().child(fileName);
+    UploadTask uploadTask = reference.putFile(avatarImageFile);
+    TaskSnapshot taskSnapshot;
+    uploadTask.then((value) {
+      if (value.bytesTransferred.isNegative == null) {
+        taskSnapshot = value;
+        taskSnapshot.ref.getDownloadURL().then((downloadUrl) {
+          photoUrl = downloadUrl;
+          FirebaseFirestore.instance.collection('users').doc(id).update({
+            'nickname': nickname,
+            'aboutMe' : aboutMe.characters,
+            'photoUrl': photoUrl
+          }).then((value) => null)
+        });
+      }
+    });*/
+  }
+
+  void handleUpdateData() {
+    focusNodeNickname.unfocus();
+    focusNodeAboutMe.unfocus();
+
+    setState(() {
+      isLoading = true;
+    });
+
+    FirebaseFirestore.instance.collection('users').doc(id).update({
+      'nickname': nickname,
+      'aboutMe': aboutMe,
+      'photoUrl': photoUrl
+    }).then((data) async {
+      await prefs.setString('nickname', nickname);
+      await prefs.setString('aboutMe', aboutMe);
+      await prefs.setString('photoUrl', photoUrl);
+
+      setState(() {
+        isLoading = false;
+      });
+
+      Fluttertoast.showToast(msg: 'Update success');
+    }).catchError((err) {
+      setState(() {
+        isLoading = false;
+      });
+
+      Fluttertoast.showToast(msg: err.toString());
+    });
+  }
 
   @override
   Widget build(BuildContext context) {

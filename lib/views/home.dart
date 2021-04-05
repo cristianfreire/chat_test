@@ -1,15 +1,20 @@
 import 'dart:async';
-import 'dart:convert';
+//import 'dart:convert';
 import 'dart:io';
 
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:chat_test/main.dart';
 import 'package:chat_test/shared/const.dart';
 import 'package:chat_test/views/chat.dart';
 import 'package:chat_test/views/settings.dart';
 import 'package:chat_test/widget/loading.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
-import 'package:chat_test/shared/const.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 class HomeScreen extends StatefulWidget {
   final String currentUserId;
@@ -24,6 +29,15 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   _HomeScreenState({Key key, @required this.currentUserId});
 
+  final String currentUserId;
+  //final FirebaseMessaging firebaseMessaging = FirebaseMessaging();
+  //final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+  final GoogleSignIn googleSignIn = GoogleSignIn();
+  final ScrollController listScrollController = ScrollController();
+
+  int _limit = 20;
+  int _limitIncrement = 20;
+  bool isLoading = false;
   List<Choice> choices = const <Choice>[
     const Choice(title: 'Settings', icon: Icons.settings),
     const Choice(title: 'Log out', icon: Icons.exit_to_app),
@@ -32,23 +46,33 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void iniState() {
     super.initState();
+    // registerNotification();
+    // configLocalNotification();
+    listScrollController.addListener(scrollListener);
   }
+
+  void scrollListener() {
+    if (listScrollController.offset >=
+            listScrollController.position.maxScrollExtent &&
+        !listScrollController.position.outOfRange) {
+      setState(() {
+        _limit += _limitIncrement;
+      });
+    }
+  }
+
+  /*void registerNotification() {}
+
+  void showNotification(message) async {}*/
 
   void onItemMenuPress(Choice choice) {
     if (choice.title == 'Log out') {
-      //handleSingOut();
+      handleSignOut();
     } else {
       Navigator.push(
           context, MaterialPageRoute(builder: (context) => ChatSettings()));
     }
   }
-
-  final String currentUserId;
-
-  final ScrollController listScrollController = ScrollController();
-
-  int _limit = 20;
-  bool isLoading = false;
 
   Future<bool> onBackPress() {
     openDialog();
@@ -144,6 +168,24 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<Null> handleSignOut() async {
+    this.setState(() {
+      isLoading = true;
+    });
+
+    await FirebaseAuth.instance.signOut();
+    await googleSignIn.disconnect();
+    await googleSignIn.signOut();
+
+    this.setState(() {
+      isLoading = false;
+    });
+
+    Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => MyApp()),
+        (Route<dynamic> route) => false);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -213,7 +255,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
             // Loading
 
-            Positioned(child: isLoading ? const Loading() : Container())
+            Positioned(
+              child: isLoading ? const Loading() : Container(),
+            )
           ],
         ),
         onWillPop: onBackPress,
@@ -287,9 +331,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 context,
                 MaterialPageRoute(
                     builder: (context) => Chat(
-                        //peerId: document.id,
-                        // peerAvatar: document.data()['photUrl']
-                        )));
+                        peerId: document.id,
+                        peerAvatar: document.data()['photUrl'])));
           },
           color: greyColor2,
           padding: EdgeInsets.fromLTRB(25.0, 10.0, 25.0, 10.0),
