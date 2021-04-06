@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:chat_test/shared/const.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:image_picker/image_picker.dart';
@@ -56,7 +57,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void readLocal() async {
     prefs = await SharedPreferences.getInstance();
     id = prefs.getString('id') ?? '';
-    nickname = prefs.getString('aboutMe') ?? '';
+    nickname = prefs.getString('nickname') ?? '';
     aboutMe = prefs.getString('aboutMe') ?? '';
     photoUrl = prefs.getString('photoUrl') ?? '';
 
@@ -85,23 +86,49 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future uploadFile() async {
-    /*String fileName = id;
+    String fileName = id;
     Reference reference = FirebaseStorage.instance.ref().child(fileName);
     UploadTask uploadTask = reference.putFile(avatarImageFile);
     TaskSnapshot taskSnapshot;
     uploadTask.then((value) {
-      if (value.bytesTransferred.isNegative == null) {
+      try {
         taskSnapshot = value;
         taskSnapshot.ref.getDownloadURL().then((downloadUrl) {
           photoUrl = downloadUrl;
           FirebaseFirestore.instance.collection('users').doc(id).update({
             'nickname': nickname,
-            'aboutMe' : aboutMe.characters,
+            'aboutMe': aboutMe,
             'photoUrl': photoUrl
-          }).then((value) => null)
+          }).then((data) async {
+            await prefs.setString('photoUrl', photoUrl);
+            setState(() {
+              isLoading = false;
+            });
+            Fluttertoast.showToast(msg: "Upload success");
+          }).catchError((err) {
+            setState(() {
+              isLoading = false;
+            });
+            Fluttertoast.showToast(msg: err.toString());
+          });
+        }, onError: (err) {
+          setState(() {
+            isLoading = false;
+          });
+          Fluttertoast.showToast(msg: "This file is not an image");
         });
+      } on StateError {
+        setState(() {
+          isLoading = false;
+        });
+        Fluttertoast.showToast(msg: "This file is not an image");
       }
-    });*/
+    }, onError: (err) {
+      setState(() {
+        isLoading = false;
+      });
+      Fluttertoast.showToast(msg: err.toString());
+    });
   }
 
   void handleUpdateData() {
